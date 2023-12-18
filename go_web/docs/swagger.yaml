@@ -1,0 +1,32 @@
+definitions:
+  main.ProblemResponse:
+    properties:
+      tag:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /problem/{idx}:
+    get:
+      description: Return "Person" tag belonging to a particular index
+      operationId: get-string-by-int
+      parameters:
+      - description: index value
+        in: path
+        name: idx
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.ProblemResponse'
+        "400":
+          description: Bad Req
+          schema:
+            type: string
+      summary: Return the corresponding tag value
+swagger: "2.0"
