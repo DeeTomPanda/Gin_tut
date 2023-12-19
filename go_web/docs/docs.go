@@ -15,32 +15,45 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/problem/{idx}": {
-            "get": {
-                "description": "Return \"Person\" tag belonging to a particular index",
+        "/addRecipe": {
+            "post": {
+                "description": "Adds a new recipe to existing recipes",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Return the corresponding tag value",
-                "operationId": "get-string-by-int",
+                "summary": "Adds a recipe",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "index value",
-                        "name": "idx",
-                        "in": "path",
-                        "required": true
+                        "description": "Recipe info",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.CreateRecipeRequest"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.ProblemResponse"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/main.Recipe"
+                            }
                         }
                     },
                     "400": {
-                        "description": "Bad Req",
+                        "description": "Bad request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Incorrect URL",
                         "schema": {
                             "type": "string"
                         }
@@ -50,10 +63,30 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "main.ProblemResponse": {
+        "main.CreateRecipeRequest": {
             "type": "object",
             "properties": {
-                "tag": {
+                "country": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.Recipe": {
+            "type": "object",
+            "properties": {
+                "country": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 }
             }

@@ -1,32 +1,53 @@
 definitions:
-  main.ProblemResponse:
+  main.CreateRecipeRequest:
     properties:
-      tag:
+      country:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  main.Recipe:
+    properties:
+      country:
+        type: string
+      id:
+        type: string
+      name:
         type: string
     type: object
 info:
   contact: {}
 paths:
-  /problem/{idx}:
-    get:
-      description: Return "Person" tag belonging to a particular index
-      operationId: get-string-by-int
+  /addRecipe:
+    post:
+      consumes:
+      - application/json
+      description: Adds a new recipe to existing recipes
       parameters:
-      - description: index value
-        in: path
-        name: idx
+      - description: Recipe info
+        in: body
+        name: request
         required: true
-        type: integer
+        schema:
+          $ref: '#/definitions/main.CreateRecipeRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.ProblemResponse'
+            items:
+              $ref: '#/definitions/main.Recipe'
+            type: array
         "400":
-          description: Bad Req
+          description: Bad request
           schema:
             type: string
-      summary: Return the corresponding tag value
+        "404":
+          description: Incorrect URL
+          schema:
+            type: string
+      summary: Adds a recipe
 swagger: "2.0"
