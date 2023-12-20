@@ -1,22 +1,55 @@
 package main
 
 import (
-    // "go.mongodb.org/mongo-driver/mongo"
-    // "go.mongodb.org/mongo-driver/mongo/options"
-    // "go.mongodb.org/mongo-driver/mongo/readpref"
+    "go.mongodb.org/mongo-driver/mongo"
+    "go.mongodb.org/mongo-driver/mongo/options"
+    "go.mongodb.org/mongo-driver/mongo/readpref"
+    "go.mongodb.org/mongo-driver/bson"
     "github.com/gin-gonic/gin"
+    "os"
     "fmt"
+    "context"
+    "log"
     docs "go_web/docs"
     swaggerfiles "github.com/swaggo/files"
     ginSwagger "github.com/swaggo/gin-swagger"
 )
+// Context to perform timeout tasks
+var ctx context.Context
+var err error
+// MongoDb drivers
+var client *mongo.Client
+var collection *mongo.Collection
 
 var recipes=[] Recipe{}
 var recipe Recipe
 
 func init(){
     fmt.Println("At init")
+    name:=os.Getenv("username")
+    pass:=os.Getenv("password")
+    connectionString:=fmt.Sprintf(`mongodb+srv://%s:%s@cluster0.zqcpn82.mongodb.net/`,name,pass)
+    // Context is for handling timeouts and go_routines?
+    ctx = context.Background()
+    client, err = mongo.Connect(ctx,options.Client().ApplyURI(connectionString))
+    if err != nil {
+        log.Fatal("Error connecting to MongoDB:", err)
+    }
+
+    err = client.Ping(ctx, readpref.Primary())
+    if err != nil {
+        log.Fatal("Error pinging MongoDB:", err)
+    }
+
+    collection=client.Database("Gin_Tutorial").Collection("Recipes")
+    if collection==nil{
+        fmt.Println("Databse or Collection ot found")
+    }
+
+    log.Println("Connected to MongoDB")
 }
+
+
 
 func main() {
     // Initialize the Gin router
@@ -27,6 +60,8 @@ func main() {
     })
     r.GET("/getAllRecipes",getAllRecipes)
     r.POST("/addRecipe",addRecipe)
+    r.POST("/delRecipe",delRecipe)
+    r.POST("/updateRecipe",updateRecipe)
         
     // For Swagger
     // Basepath determines the urls for the api's in the comment annotation
@@ -47,6 +82,53 @@ func getAllRecipes(c *gin.Context){
     c.JSON(200,recipes)
 }
 
+func updateRecipe(c *gin.Context){
+    var updatedRecipe Recipe
+
+    if err:=c.ShouldBindJSON(&updatedRecipe);err!=nil{
+        c.String(400,"Data sent is malformed")
+        return
+    }
+
+    filter:=bson.M{"id":updatedRecipe.Id}
+    // the following is important for upsert ops
+    update:=bson.M{"$set":bson.M{"name":updatedRecipe.Name,"country":updatedRecipe.Country}}
+    opts:=options.Update().SetUpsert(true)
+
+    if _,err:=collection.UpdateOne(ctx,filter,update,opts);err!=nil{
+        c.JSON(500,"ERROR while updating document")
+        return
+    }
+
+    c.JSON(200,gin.H{"message":"Success"})
+}
+
+func delRecipe(c *gin.Context){
+    // interface{} is atype to hold data of unknown type, like _ in Rust
+    var reqBody map[string]interface{}
+
+    if err:=c.ShouldBindJSON(&reqBody); err!=nil{
+        c.String(400,err.Error())
+        return
+    }
+
+    id,ok:=reqBody["id"].(string)
+    if !ok{
+        c.String(400,"Error while retrieving id")
+        return
+    }
+
+    filter:=bson.M{"id":id}
+    _,err:=collection.DeleteOne(ctx,filter)
+
+    if err!=nil{
+        c.JSON(400,"Err in deletion")
+        return
+    }
+
+    c.String(200,"Successfully deleted id")
+}
+
 
 // @Summary Adds a recipe
 // @Description Adds a new recipe to existing recipes
@@ -63,13 +145,30 @@ func addRecipe(c *gin.Context){
         return
     }
     
+    // Convert Recipe struct to BSON document using bson.M
+    recipeDocument := bson.M{
+        "id":      recipe.Id,
+        "name":    recipe.Name,
+        "country": recipe.Country,
+        // Add other fields similarly...
+    }
+
     recipes=append(recipes,recipe)
-    fmt.Println(recipes)
+
+    _,err:=collection.InsertOne(ctx,recipeDocument)
+    if err!=nil{
+        fmt.Println("Error writing to mongdb")
+        c.String(500,"Error in connection",err.Error())
+        return
+    }
+
     c.String(200,"Added Succesfully")
 }
 
+// For the swagger documentation
+
 type CreateRecipeRequest struct {
-    ID      string    `json:"id"`
+    ID      string `json:"id"`
     Name    string `json:"name"`
     Country string `json:"country"`
 }
