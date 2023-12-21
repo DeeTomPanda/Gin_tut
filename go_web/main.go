@@ -13,6 +13,7 @@ import (
     docs "go_web/docs"
     swaggerfiles "github.com/swaggo/files"
     ginSwagger "github.com/swaggo/gin-swagger"
+    handlers "go_web/handlers"
 )
 // Context to perform timeout tasks
 var ctx context.Context
@@ -20,6 +21,7 @@ var err error
 // MongoDb drivers
 var client *mongo.Client
 var collection *mongo.Collection
+var recipeHandler *handlers.RecipeHandler
 
 var recipes=[] Recipe{}
 var recipe Recipe
@@ -46,6 +48,8 @@ func init(){
         fmt.Println("Databse or Collection ot found")
     }
 
+    recipeHandler=handlers.NewRecipeHandler(ctx,collection)
+
     log.Println("Connected to MongoDB")
 }
 
@@ -58,9 +62,9 @@ func main() {
     r.GET("/",func (c *gin.Context){
         c.String(200,"Connection Ok!")
     })
-    r.GET("/getAllRecipes",getAllRecipes)
+    r.GET("/getAllRecipes",recipeHandler.GetAllRecipes)
     r.POST("/addRecipe",addRecipe)
-    r.POST("/delRecipe",delRecipe)
+    r.POST("/delRecipe",recipeHandler.DelRecipe)
     r.POST("/updateRecipe",updateRecipe)
         
     // For Swagger
@@ -77,11 +81,6 @@ type Recipe struct{
     Country string `json:"country"`
 }
 
-// gets all recipes
-func getAllRecipes(c *gin.Context){
-    c.JSON(200,recipes)
-}
-
 func updateRecipe(c *gin.Context){
     var updatedRecipe Recipe
 
@@ -95,7 +94,7 @@ func updateRecipe(c *gin.Context){
     update:=bson.M{"$set":bson.M{"name":updatedRecipe.Name,"country":updatedRecipe.Country}}
     opts:=options.Update().SetUpsert(true)
 
-    if _,err:=collection.UpdateOne(ctx,filter,update,opts);err!=nil{
+    if _,err:=recipeHandler.Collection.UpdateOne(ctx,filter,update,opts);err!=nil{
         c.JSON(500,"ERROR while updating document")
         return
     }
@@ -103,31 +102,6 @@ func updateRecipe(c *gin.Context){
     c.JSON(200,gin.H{"message":"Success"})
 }
 
-func delRecipe(c *gin.Context){
-    // interface{} is atype to hold data of unknown type, like _ in Rust
-    var reqBody map[string]interface{}
-
-    if err:=c.ShouldBindJSON(&reqBody); err!=nil{
-        c.String(400,err.Error())
-        return
-    }
-
-    id,ok:=reqBody["id"].(string)
-    if !ok{
-        c.String(400,"Error while retrieving id")
-        return
-    }
-
-    filter:=bson.M{"id":id}
-    _,err:=collection.DeleteOne(ctx,filter)
-
-    if err!=nil{
-        c.JSON(400,"Err in deletion")
-        return
-    }
-
-    c.String(200,"Successfully deleted id")
-}
 
 
 // @Summary Adds a recipe
@@ -155,7 +129,7 @@ func addRecipe(c *gin.Context){
 
     recipes=append(recipes,recipe)
 
-    _,err:=collection.InsertOne(ctx,recipeDocument)
+    _,err:=recipeHandler.Collection.InsertOne(ctx,recipeDocument)
     if err!=nil{
         fmt.Println("Error writing to mongdb")
         c.String(500,"Error in connection",err.Error())
