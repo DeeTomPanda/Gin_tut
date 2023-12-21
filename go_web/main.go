@@ -65,7 +65,7 @@ func main() {
     r.GET("/getAllRecipes",recipeHandler.GetAllRecipes)
     r.POST("/addRecipe",addRecipe)
     r.POST("/delRecipe",recipeHandler.DelRecipe)
-    r.POST("/updateRecipe",updateRecipe)
+    r.POST("/updateRecipe",recipeHandler.UpdateRecipe)
         
     // For Swagger
     // Basepath determines the urls for the api's in the comment annotation
@@ -80,29 +80,6 @@ type Recipe struct{
     Name string `json:"name"`
     Country string `json:"country"`
 }
-
-func updateRecipe(c *gin.Context){
-    var updatedRecipe Recipe
-
-    if err:=c.ShouldBindJSON(&updatedRecipe);err!=nil{
-        c.String(400,"Data sent is malformed")
-        return
-    }
-
-    filter:=bson.M{"id":updatedRecipe.Id}
-    // the following is important for upsert ops
-    update:=bson.M{"$set":bson.M{"name":updatedRecipe.Name,"country":updatedRecipe.Country}}
-    opts:=options.Update().SetUpsert(true)
-
-    if _,err:=recipeHandler.Collection.UpdateOne(ctx,filter,update,opts);err!=nil{
-        c.JSON(500,"ERROR while updating document")
-        return
-    }
-
-    c.JSON(200,gin.H{"message":"Success"})
-}
-
-
 
 // @Summary Adds a recipe
 // @Description Adds a new recipe to existing recipes

@@ -5,6 +5,7 @@ import (
 	models "go_web/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/net/context"
 	"fmt"
 )
@@ -14,6 +15,9 @@ type RecipeHandler struct{
 	Collection *mongo.Collection
 }
 
+
+// The Main function called in init() that initializes and creates an instance 
+// of the context and collection
 func NewRecipeHandler (ctx context.Context,collection *mongo.Collection) *RecipeHandler{
 	return &RecipeHandler{
 		Ctx:ctx,
@@ -21,6 +25,7 @@ func NewRecipeHandler (ctx context.Context,collection *mongo.Collection) *Recipe
 	}
 }
 
+// This is a receiver function, i.e an associated function for structs in rust
 func (handler *RecipeHandler) GetAllRecipes(c *gin.Context){
 	cur,err:=handler.Collection.Find(handler.Ctx,bson.M{})
 	if err!=nil{
@@ -67,4 +72,26 @@ func (handler *RecipeHandler) DelRecipe(c *gin.Context){
     }
 
     c.String(200,"Successfully deleted id")
+}
+
+
+func (recipe *RecipeHandler) UpdateRecipe(c *gin.Context){
+    var updatedRecipe models.Recipe
+
+    if err:=c.ShouldBindJSON(&updatedRecipe);err!=nil{
+        c.String(400,"Data sent is malformed")
+        return
+    }
+
+    filter:=bson.M{"id":updatedRecipe.Id}
+    // the following is important for upsert ops
+    update:=bson.M{"$set":bson.M{"name":updatedRecipe.Name,"country":updatedRecipe.Country}}
+    opts:=options.Update().SetUpsert(true)
+
+    if _,err:=recipe.Collection.UpdateOne(recipe.Ctx,filter,update,opts);err!=nil{
+        c.JSON(500,"ERROR while updating document")
+        return
+    }
+
+    c.JSON(200,gin.H{"message":"Success"})
 }
